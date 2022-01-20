@@ -22,7 +22,7 @@ An n by 2 list of lists containing strings, with the following structure:
   ["\\d*", "3"], 
 ]
 ```
-The `pattern` cell can accept any regex string (replacements are done using the python `re` package)
+The `pattern` cell can accept any regex string (replacements are done using the python `re` package). Since this is the case, be careful with escaping regex command characters (e.g. the "*" is the wildcard character in regex, if you want to replace it literally, it should be added as "\*")
 The `replacement` field can also take regex matched groups from the `pattern`, e.g. the next combo will surroud all digits with pairs of brackets:
 ```json
 "str_replacements": [["(\\d+)", "[$1]"]]
