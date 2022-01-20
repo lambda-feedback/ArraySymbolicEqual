@@ -2,6 +2,7 @@ import unittest
 
 from ..algorithm import grading_function
 
+
 class TestGradingFunction(unittest.TestCase):
     """
         TestCase Class used to test the algorithm.
@@ -20,11 +21,100 @@ class TestGradingFunction(unittest.TestCase):
         Use grading_function() to check your algorithm works 
         as it should.
     """
-    def test_returns_is_correct_true(self):
-        response, answer, params = None, None, dict()
-        result = grading_function(response, answer, params)
-        
-        self.assertEqual(result.get("is_correct"), True)
+    def test_unequal_input_shapes(self):
+        response = [["a"]]
+        answer = [["a"], ["b"]]
+
+        with self.assertRaises(Exception) as context:
+            response = grading_function(response, answer, {})
+
+        self.assertEqual(str(context.exception),
+                         "Response and Answer do not have the same shape")
+
+    def test_parse_error(self):
+        response = ["2x"]
+        answer = ["2*x"]
+
+        with self.assertRaises(Exception) as context:
+            response = grading_function(response, answer, {})
+
+        self.assertEqual(str(context.exception),
+                         "SymPy was unable to parse your response")
+
+    def test_vector_correct(self):
+        response = ["a + b - a", "2 + c", "d"]
+        answer = ["b", "c + 2", "d + 1 - 1 "]
+
+        response = grading_function(response, answer, {})
+
+        self.assertEqual(response.get("is_correct"), True)
+
+    def test_vector_incorrect(self):
+        response = ["a + b - a", "2 + c", "d"]
+        answer = ["b", "c + 2", "d + 1 "]
+
+        response = grading_function(response, answer, {})
+
+        self.assertEqual(response.get("is_correct"), False)
+
+    def test_matrix_correct(self):
+        response = [["a*2 - a", "c"], ["b", "d"]]
+        answer = [["a", "c"], ["b", "d"]]
+
+        response = grading_function(response, answer, {})
+
+        self.assertEqual(response.get("is_correct"), True)
+
+    def test_matrix_incorrect(self):
+        response = [["a*2 - a", "c"], ["b", "d-d"]]
+        answer = [["a", "c"], ["b", "d"]]
+
+        response = grading_function(response, answer, {})
+
+        self.assertEqual(response.get("is_correct"), False)
+
+    def test_replacement(self):
+        response = ["replaceme"]
+        answer = ["correct_answer"]
+        params = {"str_replacements": [["replaceme", "correct_answer"]]}
+
+        response = grading_function(response, answer, params)
+
+        self.assertEqual(response.get("is_correct"), True)
+
+    def test_replacements(self):
+        response = ["omega * fr + pi"]
+        answer = ["w * f + p"]
+        params = {
+            "str_replacements": [
+                ["omega", "w"],
+                ["fr", 'f'],
+                ["pi", "p"],
+            ]
+        }
+
+        response = grading_function(response, answer, params)
+
+        self.assertEqual(response.get("is_correct"), True)
+
+    def test_allow_implicit(self):
+        response = ["2w"]
+        answer = ["2*w"]
+        params = {"allow_implicit": True}
+
+        response = grading_function(response, answer, params)
+
+        self.assertEqual(response.get("is_correct"), True)
+
+    def test_allow_implicit_multiword(self):
+        response = ["2omega"]
+        answer = ["2 * omega"]
+        params = {"allow_implicit": True}
+
+        response = grading_function(response, answer, params)
+
+        self.assertEqual(response.get("is_correct"), True)
+
 
 if __name__ == "__main__":
     unittest.main()

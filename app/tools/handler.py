@@ -4,10 +4,10 @@ from .parse import parse_body
 from .healthcheck import healthcheck
 
 from . import validate as v
-
 """
     Command Handler Functions.
 """
+
 
 def handle_unknown_command(command):
     """ 
@@ -19,9 +19,11 @@ def handle_unknown_command(command):
     """
     return {
         "error": {
-            "message": f"Unknown command '{command}'. Only 'grade' and 'healthcheck' are allowed."
+            "message":
+            f"Unknown command '{command}'. Only 'grade' and 'healthcheck' are allowed."
         }
     }
+
 
 def handle_healthcheck_command():
     """
@@ -30,10 +32,8 @@ def handle_healthcheck_command():
     This function does not handle any of the request body so it is neither parsed or
     validated against a schema.
     """
-    return {
-        "command": "healthcheck",
-        "result": healthcheck()
-    }
+    return {"command": "healthcheck", "result": healthcheck()}
+
 
 def handle_grade_command(event):
     """
@@ -48,41 +48,38 @@ def handle_grade_command(event):
     body, parse_error = parse_body(event)
 
     if parse_error:
-        return {
-            "error": parse_error
-        }
-    
+        return {"error": parse_error}
+
     request_error = v.validate_request(body)
 
     if request_error:
-        return {
-            "error": request_error
-        }
-    
+        return {"error": request_error}
+
     try:
         response = body["response"]
         answer = body["answer"]
 
         params = body.get("params", dict())
-        
+
         return {
             "command": "grade",
             "result": grading_function(response, answer, params)
         }
-    
+
     except Exception as e:
         return {
             "error": {
-                "message": "An exception was raised while executing the grading function.",
-                "error_thrown": {
-                    "message": repr(e)
-                }
+                "message":
+                "An exception was raised while executing the grading function.",
+                "description": str(e) if str(e) != "" else repr(e)
             }
         }
-    
+
+
 """
     Main Handler Function
 """
+
 
 def handler(event, context={}):
     """
@@ -105,8 +102,6 @@ def handler(event, context={}):
     response_error = v.validate_response(response)
 
     if response_error:
-        return {
-            "error": response_error
-        }
+        return {"error": response_error}
 
     return response
