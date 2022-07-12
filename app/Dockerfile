@@ -1,20 +1,19 @@
 # Base image that bundles AWS Lambda Python 3.8 image with some middleware functions
-FROM loumstarlearjet/python-grading-script-base:latest
+# FROM base-eval-tmp
+FROM rabidsheep55/python-base-eval-layer
 
-# To avoid setting up the app in the global space,
-# everything is package within an /app directory.
 WORKDIR /app
 
-# Copy and install any packages/modules needed for your grading script.
+# Copy and install any packages/modules needed for your evaluation script.
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 
-# Copy the schema needed to check the incoming data is valid
-#COPY schema.json ./app/
+# Copy the evaluation and testing scripts
+COPY evaluation.py ./app/
+COPY evaluation_tests.py ./app/
 
-# Copy the grading and testing scripts
-COPY algorithm.py ./app/
-COPY tests/ ./app/tests/
+# Copy Documentation
+COPY docs.md ./app/
 
 # Set permissions so files and directories can be accessed on AWS
 RUN chmod 644 $(find . -type f)

@@ -1,9 +1,9 @@
 import unittest
 
-from ..algorithm import grading_function
+from .evaluation import evaluation_function
 
 
-class TestGradingFunction(unittest.TestCase):
+class TestEvaluationFunction(unittest.TestCase):
     """
         TestCase Class used to test the algorithm.
         ---
@@ -18,15 +18,16 @@ class TestGradingFunction(unittest.TestCase):
         Read the docs on how to use unittest here:
         https://docs.python.org/3/library/unittest.html
 
-        Use grading_function() to check your algorithm works 
+        Use evaluation_function() to check your algorithm works 
         as it should.
     """
+
     def test_unequal_input_shapes(self):
         response = [["a"]]
         answer = [["a"], ["b"]]
 
         with self.assertRaises(Exception) as context:
-            response = grading_function(response, answer, {})
+            response = evaluation_function(response, answer, {})
 
         self.assertEqual(str(context.exception),
                          "Response and Answer do not have the same shape")
@@ -36,7 +37,7 @@ class TestGradingFunction(unittest.TestCase):
         answer = ["2*x"]
 
         with self.assertRaises(Exception) as context:
-            response = grading_function(response, answer, {})
+            response = evaluation_function(response, answer, {})
 
         self.assertEqual(str(context.exception),
                          "SymPy was unable to parse your response")
@@ -45,7 +46,7 @@ class TestGradingFunction(unittest.TestCase):
         response = ["a + b - a", "2 + c", "d"]
         answer = ["b", "c + 2", "d + 1 - 1 "]
 
-        response = grading_function(response, answer, {})
+        response = evaluation_function(response, answer, {})
 
         self.assertEqual(response.get("is_correct"), True)
 
@@ -53,7 +54,7 @@ class TestGradingFunction(unittest.TestCase):
         response = ["a + b - a", "2 + c", "d"]
         answer = ["b", "c + 2", "d + 1 "]
 
-        response = grading_function(response, answer, {})
+        response = evaluation_function(response, answer, {})
 
         self.assertEqual(response.get("is_correct"), False)
 
@@ -61,7 +62,7 @@ class TestGradingFunction(unittest.TestCase):
         response = [["a*2 - a", "c"], ["b", "d"]]
         answer = [["a", "c"], ["b", "d"]]
 
-        response = grading_function(response, answer, {})
+        response = evaluation_function(response, answer, {})
 
         self.assertEqual(response.get("is_correct"), True)
 
@@ -69,7 +70,7 @@ class TestGradingFunction(unittest.TestCase):
         response = [["a*2 - a", "c"], ["b", "d-d"]]
         answer = [["a", "c"], ["b", "d"]]
 
-        response = grading_function(response, answer, {})
+        response = evaluation_function(response, answer, {})
 
         self.assertEqual(response.get("is_correct"), False)
 
@@ -78,7 +79,7 @@ class TestGradingFunction(unittest.TestCase):
         answer = ["correct_answer"]
         params = {"str_replacements": [["replaceme", "correct_answer"]]}
 
-        response = grading_function(response, answer, params)
+        response = evaluation_function(response, answer, params)
 
         self.assertEqual(response.get("is_correct"), True)
 
@@ -93,7 +94,7 @@ class TestGradingFunction(unittest.TestCase):
             ]
         }
 
-        response = grading_function(response, answer, params)
+        response = evaluation_function(response, answer, params)
 
         self.assertEqual(response.get("is_correct"), True)
 
@@ -102,7 +103,7 @@ class TestGradingFunction(unittest.TestCase):
         answer = ["2*w"]
         params = {"allow_implicit": True}
 
-        response = grading_function(response, answer, params)
+        response = evaluation_function(response, answer, params)
 
         self.assertEqual(response.get("is_correct"), True)
 
@@ -111,7 +112,7 @@ class TestGradingFunction(unittest.TestCase):
         answer = ["2 * omega"]
         params = {"allow_implicit": True}
 
-        response = grading_function(response, answer, params)
+        response = evaluation_function(response, answer, params)
 
         self.assertEqual(response.get("is_correct"), True)
 

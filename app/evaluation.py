@@ -108,11 +108,11 @@ def recursive_grade(params, response, answer, detailed_feedback, feedback,
     return detailed_feedback, feedback
 
 
-def grading_function(response, answer, params):
+def evaluation_function(response, answer, params):
     """
     Function used to grade a student response.
     ---
-    The handler function passes only one argument to grading_function(), 
+    The handler function passes only one argument to evaluation_function(), 
     which is a dictionary of the structure of the API request body
     deserialised from JSON.
 
@@ -125,13 +125,13 @@ def grading_function(response, answer, params):
 
     The way you wish to structure you code (all in this function, or 
     split into many) is entirely up to you. All that matters are the 
-    return types and that grading_function() is the main function used 
+    return types and that evaluation_function() is the main function used 
     to output the grading response.
     """
 
     if not (isinstance(response, list) and isinstance(answer, list)):
         raise Exception(
-            f"Response area as given {type(response)}, {type(answer)}: types unsupported"
+            f"Response, Answer given of type {type(response)}, {type(answer)}: types unsupported"
         )
 
     # Check response and answer have the same shape
