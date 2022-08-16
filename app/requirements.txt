@@ -1,3 +1,2 @@
-mpmath==1.2.1
-sympy==1.8
 numpy
+evaluation-function-utils
