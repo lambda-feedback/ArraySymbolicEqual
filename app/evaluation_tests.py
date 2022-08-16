@@ -1,6 +1,11 @@
 import unittest
 
-from .evaluation import evaluation_function
+try:
+    from .evaluation import evaluation_function
+except ImportError:
+    from evaluation import evaluation_function
+except MissingCredentials:
+    pass
 
 
 class TestEvaluationFunction(unittest.TestCase):
