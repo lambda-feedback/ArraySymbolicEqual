@@ -1,5 +1,7 @@
 import unittest
 
+from evaluation_function_utils.client import MissingCredentials
+
 try:
     from .evaluation import evaluation_function
 except ImportError:
