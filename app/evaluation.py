@@ -1,22 +1,19 @@
 import numpy as np
 import re
 
-from evaluation_function_utils.client import EvaluationFunctionClient
-from evaluation_function_utils.errors import EvaluationException
+#from evaluation_function_utils.client import EvaluationFunctionClient
+#from evaluation_function_utils.errors import EvaluationException
 
-client = EvaluationFunctionClient(env_path=".env")
+#client = EvaluationFunctionClient(env_path=".env")
 
+from SymbolicEqual.app.evaluation import evaluation_function as symbolicEqual
 
 def grade_single_cell(res, ans, params):
     """
     Attempt to grade a single cell using the SymbolicEqual function, 
     fallback to a local version if the request fails
     """
-    try:
-        return client.invoke('symbolicEqual', res, ans, params=params)
-    except EvaluationException as e:
-        return e.error_dict
-
+    return symbolicEqual(res, ans, params)
 
 def recursive_grade(params, response, answer, detailed_feedback, feedback,
                     loc):
@@ -30,14 +27,14 @@ def recursive_grade(params, response, answer, detailed_feedback, feedback,
     """
     if isinstance(response, str):
         if not isinstance(answer, str):
-            raise EvaluationException(
+            raise Exception(
                 "Response and Answer do not have the same shape", loc=str(loc))
 
         detailed_feedback = grade_single_cell(response, answer, params)
 
         if 'is_correct' in detailed_feedback:
             feedback += [
-                "correct" if detailed_feedback['is_correct'] else "incorrect"
+                ("correct" if detailed_feedback['is_correct'] else "incorrect",loc)
             ]
         else:  # There was an error
             feedback += [f"{loc}"]
@@ -45,7 +42,7 @@ def recursive_grade(params, response, answer, detailed_feedback, feedback,
     else:
         # Response is not a string, if answer is then there's a shape mismatch
         if not isinstance(answer, list):
-            raise EvaluationException(
+            raise Exception(
                 "Response and Answer do not have the same shape", loc=str(loc))
 
         for i in range(len(response)):
@@ -81,7 +78,7 @@ def evaluation_function(response, answer, params):
     """
 
     if not (isinstance(response, list) and isinstance(answer, list)):
-        raise EvaluationException(
+        raise Exception(
             f"Response, Answer given of type {type(response)}, {type(answer)}: types unsupported"
         )
 
@@ -89,17 +86,27 @@ def evaluation_function(response, answer, params):
     detailed_feedback, feedback = recursive_grade(params, response, answer, [],
                                                   [], [])
 
+    remark = ""
+
+    for item in feedback:
+        content = detailed_feedback[item[1][0]-1]
+        for k in range(1,len(item[1])):
+            content = content[item[1][k]-1]
+        if "feedback" in content.keys():
+            separator = "" if len(remark) == 0 else "\n"
+            remark += separator+"Entry "+str(item[1])+": "+content["feedback"]
+
     # Correct case
-    if all(item == "correct" for item in feedback):
+    if all(item[0] == "correct" for item in feedback):
         return {
             "is_correct": True,
             "detailed_feedback": detailed_feedback,
+            "feedback": remark
         }
-
     # Case where there was at least 1 parsing error (reported as a location)
     elif any(item[0] == "[" for item in feedback):
         locations = ', '.join([item for item in feedback if item[0] == '['])
-        raise EvaluationException(
+        raise Exception(
             f"symbolicEqual was unable to parse your input(s) in: {locations}",
             detailed_feedback=detailed_feedback)
 
@@ -108,4 +115,5 @@ def evaluation_function(response, answer, params):
         return {
             "is_correct": False,
             "detailed_feedback": detailed_feedback,
+            "feedback": remark
         }
