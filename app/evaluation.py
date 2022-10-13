@@ -96,7 +96,7 @@ def evaluation_function(response, answer, params):
             content = content[item[1][k]-1]
         if "feedback" in content.keys():
             separator = "" if len(remark) == 0 else "\n"
-            remark += separator+"Entry "+str(item[1])+": "+content["feedback"]
+            remark += separator+"Entry on row "+str(item[1][0])+" column "+str(item[1][1])+": "+content["feedback"]
 
     # Correct case
     if all(item[0] == "correct" for item in feedback):
