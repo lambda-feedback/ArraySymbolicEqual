@@ -90,13 +90,26 @@ def evaluation_function(response, answer, params):
 
     remark = ""
 
+    onedim_format = lambda x: "Entry "+str(x[1][0])
+    table_format = lambda x: "Entry on row "+str(x[1][0])+", column "+str(x[1][1])
+    general_format = lambda x: "Entry ("+"".join([str(i) for i in x[1][0:-1])+","])+str(x[1][-1])+")"
+
+    feedback_format = general_format
+
+    if all([not isinstance(item,list) for item in feedback]):
+        feedback_format = onedim_format
+    elif len(feedback) == 1 and all(not isinstance(feedback[0],list)):
+        feedback_format = onedim_format
+    elif all([isinstance(elem,list) for elem in feedback]) and\
+         all([len(elem) == len(feedback[0]) for elem in feedback]):
+        feedback_format = table_format
     for item in feedback:
         content = detailed_feedback[item[1][0]-1]
         for k in range(1,len(item[1])):
             content = content[item[1][k]-1]
         if "feedback" in content.keys():
             separator = "" if len(remark) == 0 else "\n"
-            remark += separator+"Entry on row "+str(item[1][0])+" column "+str(item[1][1])+": "+content["feedback"]
+            remark += separator+feedback_format(item)+": "+content["feedback"]
 
     # Correct case
     if all(item[0] == "correct" for item in feedback):
