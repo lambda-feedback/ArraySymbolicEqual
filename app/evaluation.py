@@ -13,7 +13,14 @@ def grade_single_cell(res, ans, params):
     Attempt to grade a single cell using the SymbolicEqual function, 
     fallback to a local version if the request fails
     """
+<<<<<<< Updated upstream
     return symbolicEqual(res, ans, params)
+=======
+    try:
+        return client.invoke('symbolicEqual', res, ans, params=params)
+    except EvaluationException as e:
+        return e.error_dict
+>>>>>>> Stashed changes
 
 def recursive_grade(params, response, answer, detailed_feedback, feedback,
                     loc):
