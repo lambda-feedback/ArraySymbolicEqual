@@ -90,7 +90,8 @@ def evaluation_function(response, answer, params):
 
     remark = ""
 
-    onedim_format = lambda x: "Entry "+str(x[1][0])
+    row_format = lambda x: "Entry "+str(x[1][1])
+    col_format = lambda x: "Entry "+str(x[1][0])
     table_format = lambda x: "Entry on row "+str(x[1][0])+", column "+str(x[1][1])
     general_format = lambda x: "Entry ("+"".join([str(i) for i in x[1][0:-1]+","])+str(x[1][-1])+")"
 
