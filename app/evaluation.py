@@ -98,9 +98,9 @@ def evaluation_function(response, answer, params):
     feedback_format = general_format
 
     if all([len(x) == 1 for x in answer]) or all([not isinstance(x,list) for x in answer]):
-        feedback_format = onedim_format
+        feedback_format = col_format
     elif len(answer) == 1 and all([not isinstance(x,list) for x in answer[0]]):
-        feedback_format = onedim_format
+        feedback_format = row_format
     elif len(answer) > 1 and\
          all([isinstance(elem,list) for elem in answer]) and\
          all([len(elem) == len(answer[0]) for elem in answer]):
