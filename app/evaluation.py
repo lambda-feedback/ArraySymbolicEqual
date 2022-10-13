@@ -1,26 +1,21 @@
 import numpy as np
 import re
 
-#from evaluation_function_utils.client import EvaluationFunctionClient
-#from evaluation_function_utils.errors import EvaluationException
+from evaluation_function_utils.client import EvaluationFunctionClient
+from evaluation_function_utils.errors import EvaluationException
 
-#client = EvaluationFunctionClient(env_path=".env")
+client = EvaluationFunctionClient(env_path=".env")
 
-from SymbolicEqual.app.evaluation import evaluation_function as symbolicEqual
 
 def grade_single_cell(res, ans, params):
     """
     Attempt to grade a single cell using the SymbolicEqual function, 
     fallback to a local version if the request fails
     """
-<<<<<<< Updated upstream
-    return symbolicEqual(res, ans, params)
-=======
     try:
         return client.invoke('symbolicEqual', res, ans, params=params)
     except EvaluationException as e:
         return e.error_dict
->>>>>>> Stashed changes
 
 def recursive_grade(params, response, answer, detailed_feedback, feedback,
                     loc):
@@ -34,7 +29,7 @@ def recursive_grade(params, response, answer, detailed_feedback, feedback,
     """
     if isinstance(response, str):
         if not isinstance(answer, str):
-            raise Exception(
+            raise EvaluationException(
                 "Response and Answer do not have the same shape", loc=str(loc))
 
         detailed_feedback = grade_single_cell(response, answer, params)
@@ -49,7 +44,7 @@ def recursive_grade(params, response, answer, detailed_feedback, feedback,
     else:
         # Response is not a string, if answer is then there's a shape mismatch
         if not isinstance(answer, list):
-            raise Exception(
+            raise EvaluationException(
                 "Response and Answer do not have the same shape", loc=str(loc))
 
         for i in range(len(response)):
@@ -85,7 +80,7 @@ def evaluation_function(response, answer, params):
     """
 
     if not (isinstance(response, list) and isinstance(answer, list)):
-        raise Exception(
+        raise EvaluationException(
             f"Response, Answer given of type {type(response)}, {type(answer)}: types unsupported"
         )
 
@@ -113,7 +108,7 @@ def evaluation_function(response, answer, params):
     # Case where there was at least 1 parsing error (reported as a location)
     elif any(item[0] == "[" for item in feedback):
         locations = ', '.join([item for item in feedback if item[0] == '['])
-        raise Exception(
+        raise EvaluationException(
             f"symbolicEqual was unable to parse your input(s) in: {locations}",
             detailed_feedback=detailed_feedback)
 
