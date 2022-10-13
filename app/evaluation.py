@@ -17,7 +17,6 @@ def grade_single_cell(res, ans, params):
     except EvaluationException as e:
         return e.error_dict
 
-
 def recursive_grade(params, response, answer, detailed_feedback, feedback,
                     loc):
     """
@@ -37,7 +36,7 @@ def recursive_grade(params, response, answer, detailed_feedback, feedback,
 
         if 'is_correct' in detailed_feedback:
             feedback += [
-                "correct" if detailed_feedback['is_correct'] else "incorrect"
+                ("correct" if detailed_feedback['is_correct'] else "incorrect",loc)
             ]
         else:  # There was an error
             feedback += [f"{loc}"]
@@ -89,13 +88,23 @@ def evaluation_function(response, answer, params):
     detailed_feedback, feedback = recursive_grade(params, response, answer, [],
                                                   [], [])
 
+    remark = ""
+
+    for item in feedback:
+        content = detailed_feedback[item[1][0]-1]
+        for k in range(1,len(item[1])):
+            content = content[item[1][k]-1]
+        if "feedback" in content.keys():
+            separator = "" if len(remark) == 0 else "\n"
+            remark += separator+"Entry "+str(item[1])+": "+content["feedback"]
+
     # Correct case
-    if all(item == "correct" for item in feedback):
+    if all(item[0] == "correct" for item in feedback):
         return {
             "is_correct": True,
             "detailed_feedback": detailed_feedback,
+            "feedback": remark
         }
-
     # Case where there was at least 1 parsing error (reported as a location)
     elif any(item[0] == "[" for item in feedback):
         locations = ', '.join([item for item in feedback if item[0] == '['])
@@ -108,4 +117,5 @@ def evaluation_function(response, answer, params):
         return {
             "is_correct": False,
             "detailed_feedback": detailed_feedback,
+            "feedback": remark
         }
