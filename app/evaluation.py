@@ -109,7 +109,7 @@ def evaluation_function(response, answer, params):
         for k in range(1,len(item[1])):
             content = content[item[1][k]-1]
         if "feedback" in content.keys():
-            separator = "" if len(remark) == 0 else "\n"
+            separator = "" if len(remark) == 0 else "<br />"
             remark += separator+feedback_format(item)+": "+content["feedback"]
 
     # Correct case
