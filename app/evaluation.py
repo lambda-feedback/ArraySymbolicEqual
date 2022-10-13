@@ -100,8 +100,9 @@ def evaluation_function(response, answer, params):
         feedback_format = onedim_format
     elif len(answer) == 1 and all(not isinstance(answer[0],list)):
         feedback_format = onedim_format
-    elif all([isinstance(elem,list) for elem in answer]) and\
-         all([len(elem) == len(feedback[0]) for elem in answer]):
+    elif len(answer) > 1 and\
+         all([isinstance(elem,list) for elem in answer]) and\
+         all([len(elem) == len(answer[0]) for elem in answer]):
         feedback_format = table_format
     for item in feedback:
         content = detailed_feedback[item[1][0]-1]
