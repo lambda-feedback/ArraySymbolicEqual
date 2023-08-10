@@ -111,7 +111,11 @@ def evaluation_function(response, answer, params):
             content = content[item[1][k]-1]
         if "feedback" in content.keys():
             separator = "" if len(remark) == 0 else "<br />"
-            remark += separator+feedback_format(item)+": "+content["feedback"]
+            current_feedback = content["feedback"]
+            if item[0] == 'incorrect':
+                current_feedback = "Does not match expected value. "+current_feedback
+            if len(current_feedback.strip()) > 0:
+                remark += separator+feedback_format(item)+": "+current_feedback
 
     # Correct case
     if all(item[0] == "correct" for item in feedback):
