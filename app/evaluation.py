@@ -113,7 +113,8 @@ def evaluation_function(response, answer, params):
             separator = "" if len(remark) == 0 else "<br />"
             current_feedback = content["feedback"]
             if item[0] == 'incorrect':
-                current_feedback = "Does not match expected value. "+current_feedback
+                feedback_message_incorrect = ""  #"Does not match expected value. "
+                current_feedback = feedback_message_incorrect+current_feedback
             if len(current_feedback.strip()) > 0:
                 remark += separator+feedback_format(item)+": "+current_feedback
 
