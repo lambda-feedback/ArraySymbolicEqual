@@ -1,6 +1,6 @@
 # ArraySymbolicEqual
 
-This evaluation function can take any level of nesting for "response" and "answer" fields, as comparison is done recursively (as long as both shapes are identical). Symbolic grading is done using the [SymbolicEqual](https://github.com/lambda-feedback/SymbolicEqual) function, called using the experimental EvaluationFunctionClient from the evaluation-function-utils library.
+This evaluation function can take any level of nesting for "response" and "answer" fields, as comparison is done recursively (as long as both shapes are identical). Symbolic grading is done using the [SymbolicEqual](https://lambda-feedback.github.io/user-documentation/user_eval_function_docs/symbolicEqual/) function, called using the experimental EvaluationFunctionClient from the evaluation-function-utils library.
 
 ## Inputs
 This compares cells using the `symbolicEqual` function. Please consult that function's documentation for details on it's allowable parameters, as the ones provided to this function are fed through as they are. 
