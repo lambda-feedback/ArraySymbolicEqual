@@ -1,14 +1,13 @@
-# Evaluation Function Template Repository
+# ArraySymbolicEqual Evaluation Function
 
-This template repository contains the boilerplate code needed in order to create an AWS Lambda function that can be written by any tutor to grade a response area in any way they like.
-
-This version is specifically for python, however the ultimate goal is to make similar boilerplate repositories in any language, allowing tutors the freedom to code in what they feel most comfortable with.
+This repository contains the `arraySymbolicEqual` evaluation function, which compares student responses involving arrays with symbolic equality using Python.
 
 ## Deployment
 [![Create Release Request](https://img.shields.io/badge/Create%20Release%20Request-blue?style=for-the-badge)](https://github.com/lambda-feedback/ArraySymbolicEqual/issues/new?template=release-request.yml)
 
 ## Table of Contents
-- [Evaluation Function Template Repository](#evaluation-function-template-repository)
+
+- [ArraySymbolicEqual Evaluation Function](#arraysymbolicequal-evaluation-function)
   - [Table of Contents](#table-of-contents)
   - [Repository Structure](#repository-structure)
   - [Usage](#usage)
@@ -25,17 +24,22 @@ This version is specifically for python, however the ultimate goal is to make si
 ```bash
 app/
     __init__.py
-    evaluation.py # Script containing the main evaluation_function
-    docs.md # Documentation page for this function (required)
-    evaluation_test.py # Unittests for the main evaluation_function
-    requirements.txt # list of packages needed for algorithm.py
-    Dockerfile # for building whole image to deploy to AWS
+    evaluation.py        # Script containing the main evaluation_function
+    docs/
+        dev.md           # Developer-facing documentation
+        user.md          # User-facing documentation
+    evaluation_test.py   # Unittests for the main evaluation_function
+    requirements.txt     # List of packages needed for evaluation.py
+    Dockerfile           # For building the image to deploy to AWS
 
 .github/
     workflows/
-        test-and-deploy.yml # Testing and deployment pipeline
+        test-lint.yml             # Run tests and linting on every push
+        pre_production_tests.yml  # Pre-production test suite
+        staging-deploy.yml        # Deploy to staging environment
+        production-deploy.yml     # Deploy to production environment
 
-config.json # Specify the name of the evaluation function in this file
+config.json # Specifies the name of the evaluation function
 .gitignore
 ```
 
@@ -44,22 +48,21 @@ config.json # Specify the name of the evaluation function in this file
 ### Getting Started
 
 1. Clone this repository
-2. Change the name of the evaluation function in `config.json`
-3. The name must be unique. To view existing grading functions, go to:
+2. The evaluation function name is set in `config.json` (`arraySymbolicEqual`). To view existing grading functions, go to:
 
    - [Staging API Gateway Integrations](https://eu-west-2.console.aws.amazon.com/apigateway/main/develop/integrations/attach?api=c1o0u8se7b&region=eu-west-2&routes=0xsoy4q)
    - [Production API Gateway Integrations](https://eu-west-2.console.aws.amazon.com/apigateway/main/develop/integrations/attach?api=cttolq2oph&integration=qpbgva8&region=eu-west-2&routes=0xsoy4q)
 
-4. Merge commits into the default branch
-   - This will trigger the `test-and-deploy.yml` workflow, which will build the docker image, push it to a shared ECR repository, then call the backend `grading-function/ensure` route to build the necessary infrastructure to make the function available from the client app.
+3. Merge commits into the default branch
+   - This will trigger the `test-lint.yml` workflow to run tests and linting. On success, `staging-deploy.yml` and `production-deploy.yml` will build the Docker image, push it to a shared ECR repository, then call the backend `grading-function/ensure` route to make the function available.
 
-5. You are now ready to start developing your function:
-   
+4. You are now ready to start developing your function:
+
    - Edit the `app/evaluation.py` file, which ultimately gets called when the function is given the `eval` command
-   - Edit the `app/evaluation_tests.py` file to add tests which get run:
-       - Every time you commit to this repo, before the image is built and deployed 
-       - Whenever the `healthcheck` command is supplied to the deployed function
-   - Edit the `app/docs.md` file to reflect your changes. This file is baked into the function's image, and is made available using the `docs` command. This feature is used to display this function's documentation on our [Documentation](https://lambda-feedback.github.io/Documentation/) website once it's been hooked up!
+   - Edit the `app/evaluation_test.py` file to add tests which get run:
+     - Every time you commit to this repo, before the image is built and deployed
+     - Whenever the `healthcheck` command is supplied to the deployed function
+   - Edit the `app/docs/user.md` and `app/docs/dev.md` files to reflect your changes. These files are baked into the function's image and are made available using the `docs` command. This feature is used to display documentation on our [Documentation](https://lambda-feedback.github.io/Documentation/) website.
 
 ---
 
@@ -92,8 +95,6 @@ Although all programming can be done through the GitHub interface, it is recomme
 
 - GitHub Desktop or the `git` CLI.
 
-- A code editor such as Atom, VS Code, or Sublime.
-
-Copy this template over by clicking **Use this template** button found in the repository on GitHub. Save it to the `lambda-feedback` Organisation.
+- A code editor such as VS Code, PyCharm, or similar.
 
 ## Contact
