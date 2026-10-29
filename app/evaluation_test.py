@@ -1,13 +1,24 @@
 import unittest
 from unittest import mock
 
-# The real client needs AWS credentials on creation, so replace it with a
-# mock while importing. Tests that reach symbolicEqual can't run without it.
-with mock.patch("evaluation_function_utils.client.EvaluationFunctionClient"):
+from evaluation_function_utils.client import MissingCredentials
+
+
+def import_evaluation():
     try:
         from . import evaluation
     except ImportError:
         import evaluation
+    return evaluation
+
+
+# The real client needs AWS credentials on creation. Without them, import
+# with a mock client so the tests below (which mock the client) can still run.
+try:
+    evaluation = import_evaluation()
+except MissingCredentials:
+    with mock.patch("evaluation_function_utils.client.EvaluationFunctionClient"):
+        evaluation = import_evaluation()
 
 evaluation_function = evaluation.evaluation_function
 
@@ -32,7 +43,9 @@ class TestEvaluationFunction(unittest.TestCase):
     """
 
     def setUp(self):
-        evaluation.client.reset_mock()
+        patcher = mock.patch.object(evaluation, "client")
+        self.client = patcher.start()
+        self.addCleanup(patcher.stop)
 
     def assert_size_feedback(self, response, answer, feedback):
         result = evaluation_function(response, answer, {})
@@ -40,7 +53,7 @@ class TestEvaluationFunction(unittest.TestCase):
         self.assertEqual(result.get("is_correct"), False)
         self.assertEqual(result.get("feedback"), feedback)
         # Size mismatches are reported before any cell is graded
-        evaluation.client.invoke.assert_not_called()
+        self.client.invoke.assert_not_called()
 
     def test_vector_too_long(self):
         self.assert_size_feedback(
@@ -68,12 +81,12 @@ class TestEvaluationFunction(unittest.TestCase):
             "Entry (2) has 3 entries, but should have 2 entries.")
 
     def test_same_size_is_graded(self):
-        evaluation.client.invoke.return_value = {"is_correct": True}
+        self.client.invoke.return_value = {"is_correct": True}
 
         result = evaluation_function([["a", "b"], ["c", "d"]], [["a", "b"], ["c", "d"]], {})
 
         self.assertEqual(result.get("is_correct"), True)
-        self.assertEqual(evaluation.client.invoke.call_count, 4)
+        self.assertEqual(self.client.invoke.call_count, 4)
 
     def test_answer_not_list(self):
         with self.assertRaises(evaluation.EvaluationException):
