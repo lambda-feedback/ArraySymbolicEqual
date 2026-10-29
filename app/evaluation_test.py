@@ -70,6 +70,16 @@ class TestEvaluationFunction(unittest.TestCase):
             [["a", "b", "c"], ["d", "e", "f"]], [["a", "b"], ["c", "d"], ["e", "f"]],
             "Your response has 2 rows and 3 columns, but the expected answer has 3 rows and 2 columns.")
 
+    def test_vector_for_matrix(self):
+        self.assert_size_feedback(
+            ["a", "b", "c", "d"], [["a", "b"], ["c", "d"]],
+            "Your response has 4 entries, but the expected answer has 2 rows and 2 columns.")
+
+    def test_list_for_single_expression(self):
+        self.assert_size_feedback(
+            ["a", ["b"]], ["a", "b"],
+            "Entry (2) should be a single expression, not a list.")
+
     def test_single_expression_for_list(self):
         self.assert_size_feedback(
             "a", ["a", "b"],
