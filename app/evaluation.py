@@ -4,6 +4,11 @@ import re
 from evaluation_function_utils.client import EvaluationFunctionClient
 from evaluation_function_utils.errors import EvaluationException
 
+try:
+    from .shape import shape_feedback
+except ImportError:
+    from shape import shape_feedback
+
 client = EvaluationFunctionClient(env_path=".env")
 
 
@@ -79,10 +84,18 @@ def evaluation_function(response, answer, params):
     to output the grading response.
     """
 
-    if not (isinstance(response, list) and isinstance(answer, list)):
+    if not isinstance(answer, list):
         raise EvaluationException(
-            f"Response, Answer given of type {type(response)}, {type(answer)}: types unsupported"
+            f"Answer given of type {type(answer)}: type unsupported"
         )
+
+    # Give feedback on a size/shape mismatch rather than failing during grading
+    size_feedback = shape_feedback(response, answer)
+    if size_feedback is not None:
+        return {
+            "is_correct": False,
+            "feedback": size_feedback
+        }
 
     # Grade all cells recursively (to allow any shape input)
     detailed_feedback, feedback = recursive_grade(params, response, answer, [],

@@ -1,13 +1,26 @@
 import unittest
+from unittest import mock
 
 from evaluation_function_utils.client import MissingCredentials
 
+
+def import_evaluation():
+    try:
+        from . import evaluation
+    except ImportError:
+        import evaluation
+    return evaluation
+
+
+# The real client needs AWS credentials on creation. Without them, import
+# with a mock client so the tests below (which mock the client) can still run.
 try:
-    from .evaluation import evaluation_function
-except ImportError:
-    from evaluation import evaluation_function
+    evaluation = import_evaluation()
 except MissingCredentials:
-    pass
+    with mock.patch("evaluation_function_utils.client.EvaluationFunctionClient"):
+        evaluation = import_evaluation()
+
+evaluation_function = evaluation.evaluation_function
 
 
 class TestEvaluationFunction(unittest.TestCase):
@@ -29,8 +42,65 @@ class TestEvaluationFunction(unittest.TestCase):
         as it should.
     """
 
-    def test_blank(self):
-        self.assertTrue(True)
+    def setUp(self):
+        patcher = mock.patch.object(evaluation, "client")
+        self.client = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def assert_size_feedback(self, response, answer, feedback):
+        result = evaluation_function(response, answer, {})
+
+        self.assertEqual(result.get("is_correct"), False)
+        self.assertEqual(result.get("feedback"), feedback)
+        # Size mismatches are reported before any cell is graded
+        self.client.invoke.assert_not_called()
+
+    def test_vector_too_long(self):
+        self.assert_size_feedback(
+            ["a", "b", "c"], ["a", "b"],
+            "Your response has 3 entries, but the expected answer has 2 entries.")
+
+    def test_vector_too_short(self):
+        self.assert_size_feedback(
+            ["a"], ["a", "b"],
+            "Your response has 1 entry, but the expected answer has 2 entries.")
+
+    def test_matrix_wrong_size(self):
+        self.assert_size_feedback(
+            [["a", "b", "c"], ["d", "e", "f"]], [["a", "b"], ["c", "d"], ["e", "f"]],
+            "Your response has 2 rows and 3 columns, but the expected answer has 3 rows and 2 columns.")
+
+    def test_vector_for_matrix(self):
+        self.assert_size_feedback(
+            ["a", "b", "c", "d"], [["a", "b"], ["c", "d"]],
+            "Your response has 4 entries, but the expected answer has 2 rows and 2 columns.")
+
+    def test_list_for_single_expression(self):
+        self.assert_size_feedback(
+            ["a", ["b"]], ["a", "b"],
+            "Entry (2) should be a single expression, not a list.")
+
+    def test_single_expression_for_list(self):
+        self.assert_size_feedback(
+            "a", ["a", "b"],
+            "Your response should be a list of 2 entries, not a single expression.")
+
+    def test_irregular_mismatch(self):
+        self.assert_size_feedback(
+            [["a"], ["b", "c", "d"]], [["a"], ["b", "c"]],
+            "Entry (2) has 3 entries, but should have 2 entries.")
+
+    def test_same_size_is_graded(self):
+        self.client.invoke.return_value = {"is_correct": True}
+
+        result = evaluation_function([["a", "b"], ["c", "d"]], [["a", "b"], ["c", "d"]], {})
+
+        self.assertEqual(result.get("is_correct"), True)
+        self.assertEqual(self.client.invoke.call_count, 4)
+
+    def test_answer_not_list(self):
+        with self.assertRaises(evaluation.EvaluationException):
+            evaluation_function(["a"], "a", {})
 
     """
     NOTE: This function was converted to use the experimental
