@@ -10,6 +10,7 @@ RUN pip3 install -r requirements.txt
 
 # Copy the evaluation and testing scripts
 COPY evaluation.py ./app/
+COPY shape.py ./app/
 COPY evaluation_test.py ./app/
 
 # Copy Documentation
