@@ -83,7 +83,7 @@ class TestEvaluationFunction(unittest.TestCase):
     def test_single_expression_for_list(self):
         self.assert_size_feedback(
             "a", ["a", "b"],
-            "Your response should be a list of 2 entries, not a single expression.")
+            "Your response should be an array of 2 entries.")
 
     def test_irregular_mismatch(self):
         self.assert_size_feedback(
@@ -94,6 +94,14 @@ class TestEvaluationFunction(unittest.TestCase):
         self.client.invoke.return_value = {"is_correct": True}
 
         result = evaluation_function([["a", "b"], ["c", "d"]], [["a", "b"], ["c", "d"]], {})
+
+        self.assertEqual(result.get("is_correct"), True)
+        self.assertEqual(self.client.invoke.call_count, 4)
+
+    def test_same_shape_different_values_is_graded(self):
+        self.client.invoke.return_value = {"is_correct": True}
+
+        result = evaluation_function([["a+b", "c"], ["d", "e"]], [["b+a", "c"], ["d", "e"]], {})
 
         self.assertEqual(result.get("is_correct"), True)
         self.assertEqual(self.client.invoke.call_count, 4)
