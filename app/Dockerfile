@@ -2,6 +2,9 @@
 # FROM base-eval-tmp
 FROM ghcr.io/lambda-feedback/baseevalutionfunctionlayer:main-3.12
 
+# The 3.12 image is Amazon Linux 2023, which doesn't ship `find` (used below)
+RUN dnf install -y findutils && dnf clean all
+
 WORKDIR /app
 
 # Copy and install any packages/modules needed for your evaluation script.
