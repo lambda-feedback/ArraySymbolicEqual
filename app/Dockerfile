@@ -17,7 +17,7 @@ RUN pip3 install pytest
 
 # Copy the evaluation and testing scripts
 COPY evaluation.py ./app/
-COPY evaluation_test.py ./app/
+COPY evaluation_tests.py ./app/
 
 # Copy Documentation
 COPY docs/dev.md ./app/docs/dev.md
