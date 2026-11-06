@@ -28,7 +28,7 @@ app/
     docs/
         dev.md           # Developer-facing documentation
         user.md          # User-facing documentation
-    evaluation_test.py   # Unittests for the main evaluation_function
+    evaluation_tests.py  # Unittests for the main evaluation_function
     requirements.txt     # List of packages needed for evaluation.py
     Dockerfile           # For building the image to deploy to AWS
 
@@ -59,7 +59,7 @@ config.json # Specifies the name of the evaluation function
 4. You are now ready to start developing your function:
 
    - Edit the `app/evaluation.py` file, which ultimately gets called when the function is given the `eval` command
-   - Edit the `app/evaluation_test.py` file to add tests which get run:
+   - Edit the `app/evaluation_tests.py` file to add tests which get run:
      - Every time you commit to this repo, before the image is built and deployed
      - Whenever the `healthcheck` command is supplied to the deployed function
    - Edit the `app/docs/user.md` and `app/docs/dev.md` files to reflect your changes. These files are baked into the function's image and are made available using the `docs` command. This feature is used to display documentation on our [Documentation](https://lambda-feedback.github.io/Documentation/) website.
@@ -91,7 +91,7 @@ Once the code passes all these tests, it will then be uploaded to AWS and will b
 ## Pre-requisites
 Although all programming can be done through the GitHub interface, it is recommended you do this locally on your machine. To do this, you must have installed:
 
-- Python 3.8 or higher.
+- Python 3.12 or higher.
 
 - GitHub Desktop or the `git` CLI.
 
