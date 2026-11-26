@@ -10,42 +10,21 @@ try:
 except ImportError:
     from shape import shape_feedback
 
-# Base URL of the evaluation function gateway, e.g.
-# https://<api-id>.execute-api.eu-west-2.amazonaws.com/default
-GATEWAY_URL_ENV = "EVALUATION_FUNCTION_GATEWAY_URL"
+# Full URL of the symbolicEqual function to call, e.g.
+# https://<api-id>.execute-api.eu-west-2.amazonaws.com/default/symbolicEqual
+SYMBOLIC_EQUAL_URL_ENV = "SYMBOLIC_EQUAL_URL"
 
 # API Gateway HTTP APIs time out after 30 seconds.
 REQUEST_TIMEOUT_SECONDS = 30
 
 
-def environment_suffix():
-    """
-    Suffix the backend adds to function names outside production
-    ("-staging" / "-dev"), taken from this function's own name so calls stay
-    within the same environment.
-    """
-    own_name = os.getenv("AWS_LAMBDA_FUNCTION_NAME", "")
-    for suffix in ("-staging", "-dev"):
-        if own_name.endswith(suffix):
-            return suffix
-    return ""
-
-
 class EvaluationFunctionInvoker:
     """
-    Calls other deployed evaluation functions over HTTPS through the public
-    evaluation function gateway, the same way any other client does. No AWS
-    credentials or IAM permissions are needed.
+    Calls another deployed evaluation function over HTTPS, the same way any
+    other client does. No AWS credentials or IAM permissions are needed.
     """
 
-    def gateway_url(self):
-        url = os.getenv(GATEWAY_URL_ENV)
-        if not url:
-            raise RuntimeError(f"{GATEWAY_URL_ENV} is not set")
-        return url.rstrip("/")
-
-    def invoke(self, name, response, answer, params=None):
-        url = f"{self.gateway_url()}/{name}{environment_suffix()}"
+    def invoke(self, url, response, answer, params=None):
         data = json.dumps({
             "response": response,
             "answer": answer,
@@ -71,7 +50,7 @@ class EvaluationFunctionInvoker:
             decoded = json.loads(decoded_str)
         except ValueError:
             raise EvaluationException(
-                f"Response from the {name} function could not be parsed.",
+                f"Response from {url} could not be parsed.",
                 raw_response=decoded_str)
 
         # Re-raise evaluation errors as if the function was run locally.
@@ -82,7 +61,7 @@ class EvaluationFunctionInvoker:
             return decoded["result"]
 
         raise EvaluationException(
-            f"The {name} evaluation function did not return an error or a result.",
+            f"{url} did not return an error or a result.",
             raw_response=decoded)
 
 
@@ -94,8 +73,12 @@ def grade_single_cell(res, ans, params):
     Attempt to grade a single cell using the SymbolicEqual function, 
     fallback to a local version if the request fails
     """
+    url = os.getenv(SYMBOLIC_EQUAL_URL_ENV)
+    if not url:
+        raise RuntimeError(f"{SYMBOLIC_EQUAL_URL_ENV} is not set")
+
     try:
-        return client.invoke('symbolicEqual', res, ans, params=params)
+        return client.invoke(url, res, ans, params=params)
     except EvaluationException as e:
         return e.error_dict
 
