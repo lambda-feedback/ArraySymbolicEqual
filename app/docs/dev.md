@@ -1,6 +1,8 @@
 # ArraySymbolicEqual
 
-This evaluation function can take any level of nesting for "response" and "answer" fields, as comparison is done recursively (as long as both shapes are identical). Symbolic grading is done using the [SymbolicEqual](https://lambda-feedback.github.io/user-documentation/user_eval_function_docs/symbolicEqual/) function, called using the experimental EvaluationFunctionClient from the evaluation-function-utils library.
+This evaluation function can take any level of nesting for "response" and "answer" fields, as comparison is done recursively (as long as both shapes are identical). Symbolic grading is done using the [SymbolicEqual](https://lambda-feedback.github.io/user-documentation/user_eval_function_docs/symbolicEqual/) function, invoked directly through the AWS Lambda API.
+
+The call uses this function's execution role (boto3's default credentials), so no access keys are needed. The role must allow `lambda:InvokeFunction` on the `symbolicEqual` function.
 
 ## Inputs
 This compares cells using the `symbolicEqual` function. Please consult that function's documentation for details on it's allowable parameters, as the ones provided to this function are fed through as they are. 

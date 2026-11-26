@@ -1,26 +1,67 @@
+import io
+import json
 import unittest
 from unittest import mock
 
-from evaluation_function_utils.client import MissingCredentials
-
-
-def import_evaluation():
-    try:
-        from . import evaluation
-    except ImportError:
-        import evaluation
-    return evaluation
-
-
-# The real client needs AWS credentials on creation. Without them, import
-# with a mock client so the tests below (which mock the client) can still run.
 try:
-    evaluation = import_evaluation()
-except MissingCredentials:
-    with mock.patch("evaluation_function_utils.client.EvaluationFunctionClient"):
-        evaluation = import_evaluation()
+    from . import evaluation
+except ImportError:
+    import evaluation
 
 evaluation_function = evaluation.evaluation_function
+
+
+class TestEvaluationFunctionInvoker(unittest.TestCase):
+    """Tests for invoking other functions with the execution role."""
+
+    def make_invoker(self, payload, **extra):
+        lambda_client = mock.Mock()
+        lambda_client.invoke.return_value = {
+            "StatusCode": 200,
+            "Payload": io.BytesIO(json.dumps(payload).encode("utf-8")),
+            **extra,
+        }
+        invoker = evaluation.EvaluationFunctionInvoker()
+        invoker._client = lambda_client
+        return invoker, lambda_client
+
+    def test_import_does_not_create_boto3_client(self):
+        with mock.patch.object(evaluation.boto3, "client") as boto3_client:
+            evaluation.EvaluationFunctionInvoker()
+        boto3_client.assert_not_called()
+
+    def test_uses_default_credentials(self):
+        with mock.patch.object(evaluation.boto3, "client") as boto3_client:
+            evaluation.EvaluationFunctionInvoker().lambda_client
+        # No explicit access keys: boto3 falls back to the execution role.
+        boto3_client.assert_called_once_with("lambda")
+
+    def test_returns_result(self):
+        invoker, lambda_client = self.make_invoker({"result": {"is_correct": True}})
+
+        result = invoker.invoke("symbolicEqual", "a", "a", params={"x": 1})
+
+        self.assertEqual(result, {"is_correct": True})
+        kwargs = lambda_client.invoke.call_args.kwargs
+        self.assertEqual(kwargs["FunctionName"], "symbolicEqual")
+        self.assertEqual(json.loads(kwargs["Payload"]), {
+            "headers": {"command": "eval"},
+            "body": {"response": "a", "answer": "a", "params": {"x": 1}},
+        })
+
+    def test_error_raises_evaluation_exception(self):
+        invoker, _ = self.make_invoker({"error": {"message": "parse failed"}})
+
+        with self.assertRaises(evaluation.EvaluationException) as ctx:
+            invoker.invoke("symbolicEqual", "a", "a")
+        self.assertEqual(ctx.exception.message, "parse failed")
+
+    def test_function_error_raises(self):
+        invoker, _ = self.make_invoker({"errorMessage": "boom"},
+                                       FunctionError="Unhandled")
+
+        with self.assertRaises(RuntimeError):
+            invoker.invoke("symbolicEqual", "a", "a")
 
 
 class TestEvaluationFunction(unittest.TestCase):
@@ -111,8 +152,8 @@ class TestEvaluationFunction(unittest.TestCase):
             evaluation_function(["a"], "a", {})
 
     """
-    NOTE: This function was converted to use the experimental
-    EvaluationFunctionClient which doesn't support testing yet.
+    NOTE: These tests call the deployed symbolicEqual function, so they
+    can't run in CI without AWS access.
 
     def test_vector_incorrect(self):
         response = ["a + b - a", "2 + c", "d"]

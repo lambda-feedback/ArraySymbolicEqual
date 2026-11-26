@@ -1,6 +1,6 @@
-import re
+import json
 
-from evaluation_function_utils.client import EvaluationFunctionClient
+import boto3
 from evaluation_function_utils.errors import EvaluationException
 
 try:
@@ -8,7 +8,66 @@ try:
 except ImportError:
     from shape import shape_feedback
 
-client = EvaluationFunctionClient(env_path=".env")
+
+class EvaluationFunctionInvoker:
+    """
+    Invokes other deployed evaluation functions via the AWS Lambda API.
+
+    Credentials come from boto3's default chain, which on Lambda is the
+    function's execution role. That role needs lambda:InvokeFunction on the
+    functions being called. No access keys are read or required.
+    """
+
+    def __init__(self):
+        self._client = None
+
+    @property
+    def lambda_client(self):
+        # Created lazily so importing this module needs no AWS config.
+        if self._client is None:
+            self._client = boto3.client("lambda")
+        return self._client
+
+    def invoke(self, name, response, answer, params=None):
+        payload = json.dumps({
+            "headers": {"command": "eval"},
+            "body": {
+                "response": response,
+                "answer": answer,
+                "params": params or {},
+            },
+        })
+
+        res = self.lambda_client.invoke(FunctionName=name,
+                                        Payload=payload,
+                                        InvocationType="RequestResponse")
+
+        if res.get("StatusCode") != 200 or "FunctionError" in res:
+            raise RuntimeError(
+                f"{name} invocation failed: StatusCode={res.get('StatusCode')}, "
+                f"FunctionError={res.get('FunctionError')}")
+
+        decoded_str = res["Payload"].read().decode("utf-8")
+        try:
+            decoded = json.loads(decoded_str)
+        except ValueError:
+            raise EvaluationException(
+                f"Payload response from the {name} function could not be parsed.",
+                raw_response=decoded_str)
+
+        # Re-raise evaluation errors as if the function was run locally.
+        if "error" in decoded:
+            raise EvaluationException(**decoded["error"])
+
+        if "result" in decoded:
+            return decoded["result"]
+
+        raise EvaluationException(
+            f"The {name} evaluation function did not return an error or a result.",
+            raw_response=decoded)
+
+
+client = EvaluationFunctionInvoker()
 
 
 def grade_single_cell(res, ans, params):
