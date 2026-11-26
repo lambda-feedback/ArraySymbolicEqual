@@ -1,6 +1,8 @@
-import re
+import json
+import os
+import urllib.error
+import urllib.request
 
-from evaluation_function_utils.client import EvaluationFunctionClient
 from evaluation_function_utils.errors import EvaluationException
 
 try:
@@ -8,7 +10,62 @@ try:
 except ImportError:
     from shape import shape_feedback
 
-client = EvaluationFunctionClient(env_path=".env")
+# Full URL of the symbolicEqual function to call, e.g.
+# https://<api-id>.execute-api.eu-west-2.amazonaws.com/default/symbolicEqual
+SYMBOLIC_EQUAL_URL_ENV = "SYMBOLIC_EQUAL_URL"
+
+# API Gateway HTTP APIs time out after 30 seconds.
+REQUEST_TIMEOUT_SECONDS = 30
+
+
+class EvaluationFunctionInvoker:
+    """
+    Calls another deployed evaluation function over HTTPS, the same way any
+    other client does. No AWS credentials or IAM permissions are needed.
+    """
+
+    def invoke(self, url, response, answer, params=None):
+        data = json.dumps({
+            "response": response,
+            "answer": answer,
+            "params": params or {},
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            url,
+            data=data,
+            method="POST",
+            headers={"Content-Type": "application/json", "command": "eval"},
+        )
+
+        try:
+            with urllib.request.urlopen(
+                    request, timeout=REQUEST_TIMEOUT_SECONDS) as res:
+                decoded_str = res.read().decode("utf-8")
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"{url} returned HTTP {e.code}") from e
+        except urllib.error.URLError as e:
+            raise RuntimeError(f"Request to {url} failed: {e.reason}") from e
+
+        try:
+            decoded = json.loads(decoded_str)
+        except ValueError:
+            raise EvaluationException(
+                f"Response from {url} could not be parsed.",
+                raw_response=decoded_str)
+
+        # Re-raise evaluation errors as if the function was run locally.
+        if "error" in decoded:
+            raise EvaluationException(**decoded["error"])
+
+        if "result" in decoded:
+            return decoded["result"]
+
+        raise EvaluationException(
+            f"{url} did not return an error or a result.",
+            raw_response=decoded)
+
+
+client = EvaluationFunctionInvoker()
 
 
 def grade_single_cell(res, ans, params):
@@ -16,8 +73,12 @@ def grade_single_cell(res, ans, params):
     Attempt to grade a single cell using the SymbolicEqual function, 
     fallback to a local version if the request fails
     """
+    url = os.getenv(SYMBOLIC_EQUAL_URL_ENV)
+    if not url:
+        raise RuntimeError(f"{SYMBOLIC_EQUAL_URL_ENV} is not set")
+
     try:
-        return client.invoke('symbolicEqual', res, ans, params=params)
+        return client.invoke(url, res, ans, params=params)
     except EvaluationException as e:
         return e.error_dict
 
