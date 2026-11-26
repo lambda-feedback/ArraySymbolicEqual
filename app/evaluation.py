@@ -1,6 +1,8 @@
 import json
+import os
+import urllib.error
+import urllib.request
 
-import boto3
 from evaluation_function_utils.errors import EvaluationException
 
 try:
@@ -8,51 +10,68 @@ try:
 except ImportError:
     from shape import shape_feedback
 
+# Base URL of the evaluation function gateway, e.g.
+# https://<api-id>.execute-api.eu-west-2.amazonaws.com/default
+GATEWAY_URL_ENV = "EVALUATION_FUNCTION_GATEWAY_URL"
+
+# API Gateway HTTP APIs time out after 30 seconds.
+REQUEST_TIMEOUT_SECONDS = 30
+
+
+def environment_suffix():
+    """
+    Suffix the backend adds to function names outside production
+    ("-staging" / "-dev"), taken from this function's own name so calls stay
+    within the same environment.
+    """
+    own_name = os.getenv("AWS_LAMBDA_FUNCTION_NAME", "")
+    for suffix in ("-staging", "-dev"):
+        if own_name.endswith(suffix):
+            return suffix
+    return ""
+
 
 class EvaluationFunctionInvoker:
     """
-    Invokes other deployed evaluation functions via the AWS Lambda API.
-
-    Credentials come from boto3's default chain, which on Lambda is the
-    function's execution role. That role needs lambda:InvokeFunction on the
-    functions being called. No access keys are read or required.
+    Calls other deployed evaluation functions over HTTPS through the public
+    evaluation function gateway, the same way any other client does. No AWS
+    credentials or IAM permissions are needed.
     """
 
-    def __init__(self):
-        self._client = None
-
-    @property
-    def lambda_client(self):
-        # Created lazily so importing this module needs no AWS config.
-        if self._client is None:
-            self._client = boto3.client("lambda")
-        return self._client
+    def gateway_url(self):
+        url = os.getenv(GATEWAY_URL_ENV)
+        if not url:
+            raise RuntimeError(f"{GATEWAY_URL_ENV} is not set")
+        return url.rstrip("/")
 
     def invoke(self, name, response, answer, params=None):
-        payload = json.dumps({
-            "headers": {"command": "eval"},
-            "body": {
-                "response": response,
-                "answer": answer,
-                "params": params or {},
-            },
-        })
+        url = f"{self.gateway_url()}/{name}{environment_suffix()}"
+        data = json.dumps({
+            "response": response,
+            "answer": answer,
+            "params": params or {},
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            url,
+            data=data,
+            method="POST",
+            headers={"Content-Type": "application/json", "command": "eval"},
+        )
 
-        res = self.lambda_client.invoke(FunctionName=name,
-                                        Payload=payload,
-                                        InvocationType="RequestResponse")
+        try:
+            with urllib.request.urlopen(
+                    request, timeout=REQUEST_TIMEOUT_SECONDS) as res:
+                decoded_str = res.read().decode("utf-8")
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"{url} returned HTTP {e.code}") from e
+        except urllib.error.URLError as e:
+            raise RuntimeError(f"Request to {url} failed: {e.reason}") from e
 
-        if res.get("StatusCode") != 200 or "FunctionError" in res:
-            raise RuntimeError(
-                f"{name} invocation failed: StatusCode={res.get('StatusCode')}, "
-                f"FunctionError={res.get('FunctionError')}")
-
-        decoded_str = res["Payload"].read().decode("utf-8")
         try:
             decoded = json.loads(decoded_str)
         except ValueError:
             raise EvaluationException(
-                f"Payload response from the {name} function could not be parsed.",
+                f"Response from the {name} function could not be parsed.",
                 raw_response=decoded_str)
 
         # Re-raise evaluation errors as if the function was run locally.

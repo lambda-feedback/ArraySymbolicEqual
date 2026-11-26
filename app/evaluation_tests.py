@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import unittest
 from unittest import mock
 
@@ -11,57 +12,71 @@ except ImportError:
 evaluation_function = evaluation.evaluation_function
 
 
+GATEWAY = "https://gateway.example.com/default"
+
+
 class TestEvaluationFunctionInvoker(unittest.TestCase):
-    """Tests for invoking other functions with the execution role."""
+    """Tests for calling other functions through the gateway."""
 
-    def make_invoker(self, payload, **extra):
-        lambda_client = mock.Mock()
-        lambda_client.invoke.return_value = {
-            "StatusCode": 200,
-            "Payload": io.BytesIO(json.dumps(payload).encode("utf-8")),
-            **extra,
-        }
-        invoker = evaluation.EvaluationFunctionInvoker()
-        invoker._client = lambda_client
-        return invoker, lambda_client
+    def setUp(self):
+        self.invoker = evaluation.EvaluationFunctionInvoker()
 
-    def test_import_does_not_create_boto3_client(self):
-        with mock.patch.object(evaluation.boto3, "client") as boto3_client:
-            evaluation.EvaluationFunctionInvoker()
-        boto3_client.assert_not_called()
+    def call(self, body, function_name="arraySymbolicEqual", gateway=GATEWAY):
+        """Invoke with a mocked HTTP response; returns (result, request)."""
+        env = {"AWS_LAMBDA_FUNCTION_NAME": function_name}
+        if gateway is not None:
+            env[evaluation.GATEWAY_URL_ENV] = gateway
 
-    def test_uses_default_credentials(self):
-        with mock.patch.object(evaluation.boto3, "client") as boto3_client:
-            evaluation.EvaluationFunctionInvoker().lambda_client
-        # No explicit access keys: boto3 falls back to the execution role.
-        boto3_client.assert_called_once_with("lambda")
+        res = mock.MagicMock()
+        res.read.return_value = json.dumps(body).encode("utf-8")
+        res.__enter__.return_value = res
+
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(evaluation.urllib.request, "urlopen",
+                                  return_value=res) as urlopen:
+            result = self.invoker.invoke("symbolicEqual", "a", "a",
+                                         params={"x": 1})
+        return result, urlopen.call_args.args[0]
 
     def test_returns_result(self):
-        invoker, lambda_client = self.make_invoker({"result": {"is_correct": True}})
-
-        result = invoker.invoke("symbolicEqual", "a", "a", params={"x": 1})
+        result, request = self.call(
+            {"command": "eval", "result": {"is_correct": True}})
 
         self.assertEqual(result, {"is_correct": True})
-        kwargs = lambda_client.invoke.call_args.kwargs
-        self.assertEqual(kwargs["FunctionName"], "symbolicEqual")
-        self.assertEqual(json.loads(kwargs["Payload"]), {
-            "headers": {"command": "eval"},
-            "body": {"response": "a", "answer": "a", "params": {"x": 1}},
+        self.assertEqual(request.full_url, f"{GATEWAY}/symbolicEqual")
+        self.assertEqual(request.get_method(), "POST")
+        self.assertEqual(request.get_header("Command"), "eval")
+        self.assertEqual(json.loads(request.data), {
+            "response": "a", "answer": "a", "params": {"x": 1},
         })
 
-    def test_error_raises_evaluation_exception(self):
-        invoker, _ = self.make_invoker({"error": {"message": "parse failed"}})
+    def test_stays_in_own_environment(self):
+        _, request = self.call({"result": {}},
+                               function_name="arraySymbolicEqual-staging",
+                               gateway=GATEWAY + "/")
+        self.assertEqual(request.full_url, f"{GATEWAY}/symbolicEqual-staging")
 
+        _, request = self.call({"result": {}},
+                               function_name="arraySymbolicEqual-dev")
+        self.assertEqual(request.full_url, f"{GATEWAY}/symbolicEqual-dev")
+
+    def test_error_raises_evaluation_exception(self):
         with self.assertRaises(evaluation.EvaluationException) as ctx:
-            invoker.invoke("symbolicEqual", "a", "a")
+            self.call({"error": {"message": "parse failed"}})
         self.assertEqual(ctx.exception.message, "parse failed")
 
-    def test_function_error_raises(self):
-        invoker, _ = self.make_invoker({"errorMessage": "boom"},
-                                       FunctionError="Unhandled")
-
+    def test_missing_gateway_url_raises(self):
         with self.assertRaises(RuntimeError):
-            invoker.invoke("symbolicEqual", "a", "a")
+            self.call({"result": {}}, gateway=None)
+
+    def test_http_error_raises(self):
+        error = evaluation.urllib.error.HTTPError(
+            GATEWAY, 500, "Internal Server Error", {}, io.BytesIO(b""))
+        with mock.patch.dict(os.environ, {evaluation.GATEWAY_URL_ENV: GATEWAY}), \
+                mock.patch.object(evaluation.urllib.request, "urlopen",
+                                  side_effect=error):
+            with self.assertRaises(RuntimeError):
+                self.invoker.invoke("symbolicEqual", "a", "a")
 
 
 class TestEvaluationFunction(unittest.TestCase):
